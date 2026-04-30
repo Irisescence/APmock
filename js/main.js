@@ -36,6 +36,7 @@
   let examWorkspaceHandle = null;
   let currentRole = "guest";
   let canEditExams = false;
+  let selectedSubjectFilter = 'all';
 
   const examGridContainer = document.getElementById('examGridContainer');
   const editorModal = document.getElementById('editorModal');
@@ -45,6 +46,7 @@
   const importFileInput = document.getElementById('importFileInput');
   const importFolderInput = document.getElementById('importFolderInput');
   const imageUploadInput = document.getElementById('imageUploadInput');
+  const subjectFilter = document.getElementById('subjectFilter');
 
 
   function applyRolePermissions() {
@@ -88,13 +90,6 @@ async function init() {
     await examDB.open();
     EXAMS = await examDB.getUserExams();
     
-    if (EXAMS.length === 0) {
-      for (const exam of DEFAULT_EXAMS) {
-        await examDB.saveExam(exam);
-      }
-      EXAMS = await examDB.getUserExams();
-    }
-    
     // 异步渲染，加载历史记录
     await renderExamCards();
     
@@ -109,7 +104,10 @@ async function renderExamCards() {
   console.log('🎨 渲染试卷卡片...');
   
   // 获取所有试卷的最新记录
-  const visibleExams = canEditExams ? EXAMS : EXAMS.filter(exam => exam.isPublic === true);
+  let visibleExams = canEditExams ? EXAMS : EXAMS.filter(exam => exam.isPublic === true);
+  if (selectedSubjectFilter !== 'all') {
+    visibleExams = visibleExams.filter(exam => exam.subject === selectedSubjectFilter);
+  }
   const latestRecords = await examDB.getAllLatestHistory();
   
   let html = '';
@@ -117,7 +115,7 @@ async function renderExamCards() {
     html = '<p style="grid-column:1/-1; text-align:center; padding:40px; color:#999;">暂无试卷，点击"新建试卷"开始</p>';
   } else {
     visibleExams.forEach(exam => {
-      const typeLabel = exam.examType === 'mcq' ? '📝 MCQ' : '📄 FRQ';
+      const typeLabel = 'MCQ';
       const latestRecord = latestRecords[exam.id];
       
       // 上次成绩信息
@@ -169,9 +167,12 @@ async function renderExamCards() {
 
   function renderExamCardsSync() {
     let html = '';
-    const visibleExams = canEditExams ? EXAMS : EXAMS.filter(exam => exam.isPublic === true);
+    let visibleExams = canEditExams ? EXAMS : EXAMS.filter(exam => exam.isPublic === true);
+  if (selectedSubjectFilter !== 'all') {
+    visibleExams = visibleExams.filter(exam => exam.subject === selectedSubjectFilter);
+  }
     visibleExams.forEach(exam => {
-      const typeLabel = exam.examType === 'mcq' ? '📝 MCQ' : '📄 FRQ';
+      const typeLabel = 'MCQ';
       html += `
         <div class="exam-card">
           <div class="card-actions" style="display:${canEditExams ? 'flex' : 'none'}">
@@ -321,10 +322,10 @@ window.startExam = function(examId) {
     document.getElementById('examTitle').value = exam?.title || '';
     document.getElementById('examDesc').value = exam?.description || '';
     document.getElementById('examTime').value = exam?.timeLimit || 45;
-    document.getElementById('examType').value = exam?.examType || 'mcq';
+    document.getElementById('examType').value = 'mcq';
     document.getElementById('examVisibility').value = exam?.isPublic ? 'public' : 'private';
     
-    renderQuestionsEditor(exam?.questions || [], exam?.examType || 'mcq');
+    renderQuestionsEditor(exam?.questions || [], 'mcq');
     editorModal.classList.remove('hidden');
   };
 
@@ -487,7 +488,7 @@ window.startExam = function(examId) {
 
   window.addQuestion = function() {
   const questions = getCurrentQuestionsFromForm();
-  const examType = examTypeSelect.value;
+  const examType = 'mcq';
   
   if (examType === 'mcq') {
     questions.push({
@@ -928,21 +929,13 @@ examForm.addEventListener('submit', async (e) => {
   const title = document.getElementById('examTitle').value.trim();
   const description = document.getElementById('examDesc').value.trim();
   const timeLimit = parseInt(document.getElementById('examTime').value);
-  const examType = examTypeSelect.value;
+  const examType = 'mcq';
   const isPublic = document.getElementById('examVisibility').value === 'public';
   const questions = getCurrentQuestionsFromForm();
   
-  if (!subject || !title || questions.length === 0) {
+  if (!subject || !title || !description || questions.length === 0) {
     isSavingExam = false;
     alert('请填写完整信息并至少添加一道题目');
-    return;
-  }
-  
-  try {
-    await ensureExamWorkspaceHandle();
-  } catch (error) {
-    isSavingExam = false;
-    alert('请选择试卷导出文件夹: ' + error.message);
     return;
   }
 
@@ -963,7 +956,6 @@ examForm.addEventListener('submit', async (e) => {
   
   try {
     await examDB.saveExam(examData);
-    await syncExamToWorkspace(examData);
     closeEditor();
     
     // 重新加载数据并刷新显示
@@ -982,48 +974,22 @@ examForm.addEventListener('submit', async (e) => {
 
   function renderQuestionsEditor(questions, examType) {
   const container = document.getElementById('questionsList');
-  
+
   if (!questions || questions.length === 0) {
-    container.innerHTML = '<p style="color:#999; padding:20px; text-align:center;">暂无题目，点击下方添加</p>';
+    container.innerHTML = '<p style="color:#999; padding:20px; text-align:center;">No questions yet. Click Add Question below.</p>';
     return;
   }
-  
+
   let html = '';
   questions.forEach((q, qIndex) => {
-    if (examType === 'mcq') {
-      html += renderMCQEditor(q, qIndex);
-    } else {
-      html += renderFRQEditor(q, qIndex);
-    }
+    html += renderMCQEditor(q, qIndex);
   });
-  
+
   container.innerHTML = html;
 }
 
   examTypeSelect.addEventListener('change', () => {
-  const newType = examTypeSelect.value;
-  console.log('🔄 切换题型到:', newType);
-  
-  // 只创建一个默认题目
-  let newQuestions = [];
-  
-  if (newType === 'mcq') {
-    newQuestions = [{
-      type: 'mcq',
-      text: '新题目',
-      options: ['选项 A', '选项 B', '选项 C', '选项 D'],
-      correct: 0,
-      image: null
-    }];
-  } else {
-    newQuestions = [{
-      type: 'frq',
-      mainText: '新 FRQ 大题',
-      parts: []
-    }];
-  }
-  
-  renderQuestionsEditor(newQuestions, newType);
+  examTypeSelect.value = 'mcq';
 });
   
   // 表单提交
@@ -1034,11 +1000,11 @@ examForm.addEventListener('submit', async (e) => {
     const title = document.getElementById('examTitle').value.trim();
     const description = document.getElementById('examDesc').value.trim();
     const timeLimit = parseInt(document.getElementById('examTime').value);
-    const examType = examTypeSelect.value;
+    const examType = 'mcq';
     const isPublic = document.getElementById('examVisibility').value === 'public';
     const questions = getCurrentQuestionsFromForm();
     
-    if (!subject || !title || questions.length === 0) {
+    if (!subject || !title || !description || questions.length === 0) {
       alert('请填写完整信息并至少添加一道题目');
       return;
     }
@@ -1115,10 +1081,16 @@ examForm.addEventListener('submit', async (e) => {
     if (!requireTeacherPermission()) return;
     openEditor(null);
   });
+  if (subjectFilter) {
+    subjectFilter.addEventListener('change', async () => {
+      selectedSubjectFilter = subjectFilter.value || 'all';
+      await renderExamCards();
+    });
+  }
 
   // 替换原来的空函数
 window.getCurrentQuestionsFromForm = function() {
-  const examType = examTypeSelect.value;
+  const examType = 'mcq';
   const container = document.getElementById('questionsList');
   const questionItems = container.querySelectorAll('.question-item');
   const questions = [];
