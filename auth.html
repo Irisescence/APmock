@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>&#36134;&#25143;&#30331;&#24405; | AP Practice Exam</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-brand-panel">
+      <a class="auth-back-link" href="index.html">&#36820;&#22238;&#39318;&#39029;</a>
+      <div>
+        <div class="auth-brand-mark">AP</div>
+        <h1>AP Practice Exam</h1>
+        <p>&#30331;&#24405;&#21518;&#32487;&#32493;&#32451;&#20064;&#12289;&#26597;&#30475;&#32771;&#35797;&#35760;&#24405;&#65292;&#32769;&#24072;&#36134;&#21495;&#21487;&#20197;&#31649;&#29702;&#35797;&#21367;&#12290;</p>
+      </div>
+    </section>
+
+    <section class="auth-card" id="authCard">
+      <div class="auth-tabs" role="tablist" aria-label="&#36134;&#25143;&#25805;&#20316;">
+        <button class="auth-tab active" id="loginTab" type="button">&#30331;&#24405;</button>
+        <button class="auth-tab" id="signupTab" type="button">&#27880;&#20876;</button>
+      </div>
+
+      <div id="authMessage" class="auth-message hidden"></div>
+
+      <form id="loginForm" class="auth-form">
+        <div class="auth-form-heading">
+          <h2>&#27426;&#36814;&#22238;&#26469;</h2>
+          <p>&#20351;&#29992;&#37038;&#31665;&#21644;&#23494;&#30721;&#30331;&#24405;&#20320;&#30340;&#36134;&#25143;&#12290;</p>
+        </div>
+        <label>
+          <span>&#37038;&#31665;</span>
+          <input type="email" id="loginEmail" autocomplete="email" required>
+        </label>
+        <label>
+          <span>&#23494;&#30721;</span>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+        </label>
+        <button class="auth-submit" type="submit">&#30331;&#24405;</button>
+      </form>
+
+      <form id="signupForm" class="auth-form hidden">
+        <div class="auth-form-heading">
+          <h2>&#21019;&#24314;&#36134;&#25143;</h2>
+          <p>&#27880;&#20876;&#21518;&#38656;&#35201;&#22635;&#20889;&#30495;&#23454;&#22995;&#21517;&#65292;&#40664;&#35748;&#36523;&#20221;&#26159;&#23398;&#29983;&#12290;</p>
+        </div>
+        <label>
+          <span>&#37038;&#31665;</span>
+          <input type="email" id="signupEmail" autocomplete="email" required>
+        </label>
+        <label>
+          <span>&#23494;&#30721;</span>
+          <input type="password" id="signupPassword" autocomplete="new-password" minlength="6" required>
+        </label>
+        <label>
+          <span>&#20877;&#27425;&#36755;&#20837;&#23494;&#30721;</span>
+          <input type="password" id="signupPasswordConfirm" autocomplete="new-password" minlength="6" required>
+        </label>
+        <button class="auth-submit" type="submit">&#27880;&#20876;&#24182;&#32487;&#32493;</button>
+      </form>
+
+      <form id="profileForm" class="auth-form hidden">
+        <div class="auth-form-heading">
+          <h2>&#23436;&#21892;&#36164;&#26009;</h2>
+          <p>&#30495;&#23454;&#22995;&#21517;&#29992;&#20110;&#39318;&#39029;&#36134;&#25143;&#26174;&#31034;&#12290;&#26165;&#31216;&#21487;&#20197;&#31245;&#21518;&#20877;&#22635;&#12290;</p>
+        </div>
+        <label>
+          <span>&#30495;&#23454;&#22995;&#21517;</span>
+          <input type="text" id="profileRealName" autocomplete="name" required>
+        </label>
+        <label>
+          <span>&#26165;&#31216;&#65288;&#21487;&#36873;&#65289;</span>
+          <input type="text" id="profileNickname" autocomplete="nickname">
+        </label>
+        <button class="auth-submit" type="submit">&#20445;&#23384;&#36164;&#26009;</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    window.apAuth.initAuthPage();
+  </script>
+</body>
+</html>
