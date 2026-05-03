@@ -6,6 +6,8 @@
   let currentQIndex = 0;
   let examStartTime = null;
   let timerInterval = null;
+  let isPaused = false;
+  let pausedRemainingSeconds = null;
   let examSubmitted = false;
   let reviewMode = false;
   let reviewSelectedIndex = 0;
@@ -49,9 +51,15 @@
 
   function getRemainingSeconds() {
     if (!examData) return 0;
+    if (isPaused && pausedRemainingSeconds !== null) return pausedRemainingSeconds;
     if (!examStartTime) return examData.timeLimit * 60;
     const elapsed = Math.floor((Date.now() - examStartTime) / 1000);
     return Math.max(0, examData.timeLimit * 60 - elapsed);
+  }
+
+  function getTimeUsedSeconds() {
+    if (!examData) return 0;
+    return Math.max(0, examData.timeLimit * 60 - getRemainingSeconds());
   }
 
   function formatTime(seconds) {
@@ -149,6 +157,25 @@
     }
   };
 
+  window.pauseExam = function() {
+    if (examSubmitted || isHistoryReview || isPaused) return;
+    pausedRemainingSeconds = getRemainingSeconds();
+    isPaused = true;
+    if (timerInterval) clearInterval(timerInterval);
+    renderExamSession();
+  };
+
+  window.resumeExam = function() {
+    if (!isPaused || !examData) return;
+    const totalSeconds = examData.timeLimit * 60;
+    const elapsedSeconds = totalSeconds - (pausedRemainingSeconds ?? totalSeconds);
+    examStartTime = Date.now() - elapsedSeconds * 1000;
+    pausedRemainingSeconds = null;
+    isPaused = false;
+    renderExamSession();
+    startTimer();
+  };
+
   window.setLeftPaneWidth = function(value) {
     leftPaneWidth = Math.min(70, Math.max(35, Number(value) || 52));
     renderExamSession();
@@ -190,16 +217,26 @@
       return;
     }
 
+    if (isPaused) {
+      document.getElementById("examApp").innerHTML = renderPausedScreen();
+      return;
+    }
+
     document.getElementById("examApp").innerHTML =
       examData.examType === "mcq" ? renderMCQLayout() : renderFRQLayout();
   }
 
   function renderHeader(centerTitle, centerStatus, rightContent) {
+    const pauseButton = !examSubmitted && !isHistoryReview
+      ? `<button class="btn btn-sm" onclick="${isPaused ? "resumeExam()" : "pauseExam()"}">${isPaused ? "Resume" : "Pause"}</button>`
+      : "";
+    const submitDisabled = isPaused ? "disabled" : "";
     return `
       <div class="exam-top-bar">
         <div class="toolbar-group">
           <button class="btn btn-sm" onclick="confirmExit()">Exit</button>
-          <button class="btn btn-primary btn-sm" onclick="submitExam()">Submit Section</button>
+          ${pauseButton}
+          <button class="btn btn-primary btn-sm" onclick="submitExam()" ${submitDisabled}>Submit Section</button>
         </div>
         <div class="exam-title-display">
           <div class="exam-kicker">AP Practice Exam</div>
@@ -208,6 +245,25 @@
         </div>
         <div class="toolbar-group end">
           ${rightContent}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPausedScreen() {
+    return `
+      ${renderHeader(
+        examData.title,
+        `Paused | Time remaining ${formatTime(getRemainingSeconds())}`,
+        `<div class="timer-badge paused"><span id="timerDisplay">${formatTime(getRemainingSeconds())}</span></div>`
+      )}
+
+      <div class="pause-screen">
+        <div class="pause-card">
+          <div class="pause-kicker">Exam Paused</div>
+          <h2>${formatTime(getRemainingSeconds())}</h2>
+          <p>Your timer is stopped. Resume when you are ready to continue.</p>
+          <button class="btn btn-primary" onclick="resumeExam()">Resume Exam</button>
         </div>
       </div>
     `;
@@ -459,12 +515,13 @@
   }
 
   window.selectOption = function(idx) {
-    if (examSubmitted) return;
+    if (examSubmitted || isPaused) return;
     userAnswers[currentQIndex] = idx;
     renderExamSession();
   };
 
   window.prevQuestion = function() {
+    if (isPaused) return;
     if (currentQIndex > 0) {
       currentQIndex -= 1;
       renderExamSession();
@@ -472,6 +529,7 @@
   };
 
   window.nextQuestion = function() {
+    if (isPaused) return;
     if (currentQIndex < examData.questions.length - 1) {
       currentQIndex += 1;
       renderExamSession();
@@ -480,6 +538,7 @@
 
   window.submitExam = async function() {
     if (examSubmitted) return;
+    if (isPaused) return;
 
     if (timerInterval) clearInterval(timerInterval);
     examSubmitted = true;
@@ -489,7 +548,7 @@
       examId: localStorage.getItem("currentExamId"),
       examTitle: examData.title,
       examType: examData.examType,
-      timeUsed: examStartTime ? Math.floor((Date.now() - examStartTime) / 1000) : 0,
+      timeUsed: getTimeUsedSeconds(),
       completedAt: new Date().toISOString()
     };
 
